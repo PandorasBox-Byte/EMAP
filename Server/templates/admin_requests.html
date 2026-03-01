@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMA Admin - Friend Requests</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .sidebar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+            position: fixed;
+            width: 250px;
+            left: 0;
+            top: 0;
+        }
+        .sidebar h3 {
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 700;
+        }
+        .sidebar a {
+            display: block;
+            color: white;
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 30px;
+        }
+        .topbar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .table-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .status-accepted {
+            background: #d4edda;
+            color: #155724;
+        }
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-delete:hover {
+            background: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h3>🔐 EMA Admin</h3>
+        <a href="/admin/"><i class="fas fa-chart-line"></i> Dashboard</a>
+        <a href="/admin/users"><i class="fas fa-users"></i> Users</a>
+        <a href="/admin/messages"><i class="fas fa-envelope"></i> Messages</a>
+        <a href="/admin/requests" class="active"><i class="fas fa-handshake"></i> Friend Requests</a>
+        <hr style="background: white; margin: 20px 0;">
+        <button class="btn btn-logout w-100" style="background: #dc3545; color: white;" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+
+    <div class="main-content">
+        <div class="topbar">
+            <h2>🤝 Friend Requests</h2>
+        </div>
+
+        <div class="table-container">
+            <div class="mb-3">
+                <select id="statusSelect" class="form-select">
+                    <option value="pending">Pending Requests</option>
+                    <option value="accepted">Accepted</option>
+                    <option value="rejected">Rejected</option>
+                </select>
+            </div>
+            
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Created</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="requestsTable">
+                    <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+                </tbody>
+            </table>
+            
+            <nav>
+                <ul class="pagination" id="pagination"></ul>
+            </nav>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentPage = 1;
+        let currentStatus = 'pending';
+
+        async function loadRequests(page = 1, status = 'pending') {
+            try {
+                const response = await fetch(`/admin/api/requests?page=${page}&status=${status}`);
+                const data = await response.json();
+                
+                const table = document.getElementById('requestsTable');
+                table.innerHTML = '';
+                
+                if (data.data.length === 0) {
+                    table.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No requests found</td></tr>';
+                    return;
+                }
+                
+                data.data.forEach(req => {
+                    let badgeClass = 'status-pending';
+                    if (req.status === 'accepted') badgeClass = 'status-accepted';
+                    
+                    let actionBtn = '';
+                    if (req.status === 'pending') {
+                        actionBtn = `<button class="btn-delete" onclick="deleteRequest('${req.id}')">Remove</button>`;
+                    }
+                    
+                    const row = `
+                        <tr>
+                            <td>${req.sender}</td>
+                            <td>${req.receiver}</td>
+                            <td>${new Date(req.created_at).toLocaleTimeString()}</td>
+                            <td><span class="status-badge ${badgeClass}">${req.status.toUpperCase()}</span></td>
+                            <td>${actionBtn}</td>
+                        </tr>
+                    `;
+                    table.innerHTML += row;
+                });
+                
+                // Pagination
+                const pagination = document.getElementById('pagination');
+                pagination.innerHTML = '';
+                for (let i = 1; i <= data.pages; i++) {
+                    const li = `
+                        <li class="page-item ${i === page ? 'active' : ''}">
+                            <a class="page-link" href="#" onclick="loadRequests(${i}, '${currentStatus}')">${i}</a>
+                        </li>
+                    `;
+                    pagination.innerHTML += li;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        async function deleteRequest(requestId) {
+            if (!confirm('Delete this friend request?')) return;
+            
+            try {
+                const response = await fetch(`/admin/api/requests/${requestId}/delete`, {method: 'POST'});
+                if (response.ok) {
+                    loadRequests(currentPage, currentStatus);
+                } else {
+                    alert('Failed to delete request');
+                }
+            } catch (error) {
+                alert('Error deleting request');
+            }
+        }
+
+        function logout() {
+            fetch('/admin/logout', {method: 'POST'}).then(() => {
+                window.location.href = '/admin/login';
+            });
+        }
+
+        document.getElementById('statusSelect').addEventListener('change', (e) => {
+            currentStatus = e.target.value;
+            currentPage = 1;
+            loadRequests(1, currentStatus);
+        });
+
+        loadRequests(1, 'pending');
+    </script>
+</body>
+</html>

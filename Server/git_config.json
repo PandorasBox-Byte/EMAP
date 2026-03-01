@@ -1,0 +1,9 @@
+{
+  "repo_url": "https://github.com/yourusername/EMA",
+  "branch": "main",
+  "last_update": null,
+  "current_version": "1.0.0",
+  "check_interval_hours": 1,
+  "auto_update_on_startup": true,
+  "auto_restart_after_update": false
+}

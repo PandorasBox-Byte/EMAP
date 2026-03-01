@@ -1,0 +1,46 @@
+# Systemd Service File for EMA
+# Copy to: /etc/systemd/system/ema.service
+# Then run: sudo systemctl daemon-reload && sudo systemctl enable ema
+
+[Unit]
+Description=EMA Encrypted Messaging Application Server
+Documentation=https://github.com/your/ema/wiki
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=ema
+Group=ema
+WorkingDirectory=/opt/ema
+Environment="PATH=/opt/ema/venv/bin"
+Environment="PYTHONUNBUFFERED=1"
+
+# Main process
+ExecStart=/opt/ema/venv/bin/gunicorn \
+    --workers 4 \
+    --worker-class sync \
+    --bind 127.0.0.1:5000 \
+    --access-logfile /var/log/ema/access.log \
+    --error-logfile /var/log/ema/error.log \
+    --log-level info \
+    app:app
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=8192
+MemoryLimit=512M
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/ema /var/log/ema
+
+[Install]
+WantedBy=multi-user.target
